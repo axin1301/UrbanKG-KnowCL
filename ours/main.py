@@ -89,27 +89,31 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    for n_gcn in range(args.n_gcn_layer):
-        args.layer_size.append(64)
-        args.layer_dropout.append(0.3)
+    # for n_gcn in range(args.n_gcn_layer):
+    #     args.layer_size.append(64)
+    #     args.layer_dropout.append(0.3)
 
     args.kg_path = "../data/" + args.dataset + "/" + args.dataset + "_0715.txt"
     args.sv_path = "../data/" + args.dataset + "/streetview_image/Region/"
     args.si_path = "../data/" + args.dataset + "/satellite_image/zl15_224/"
 
-    args.TuckER_pretrain_path = "../data/" + args.dataset + "/whole_ER_" + args.dataset + "_TuckER64.npz"
+    # args.TuckER_pretrain_path = "../data/" + args.dataset + "/whole_ER_" + args.dataset + "_TuckER64.npz"
 
-    args.poi_streetview_filename_path = "../data/" + args.dataset + "/streetview_image/region_5_10_poi_image_filename.json"
+    # args.poi_streetview_filename_path = "../data/" + args.dataset + "/streetview_image/region_5_10_poi_image_filename.json"
 
-    args.model_path = "./works/" + args.model_name + "/" + args.dataset + "/check_" \
-                      + str(args.epochs) + "_lr_" + str(args.lr) + "_gcn_" + str(args.n_gcn_layer) + "_bs_" + str(
-        args.batch_size)
+    # args.model_path = "./works/" + args.model_name + "/" + args.dataset + "/check_" \
+    #                   + str(args.epochs) + "_lr_" + str(args.lr) + "_gcn_" + str(args.n_gcn_layer) + "_bs_" + str(
+    #     args.batch_size)
+
+    args.model_path = "/check_" + str(args.epochs) + "_lr_" + str(args.lr) + "_bs_" + str(args.batch_size)
 
     if not os.path.exists(args.model_path):
         os.makedirs(args.model_path)
 
-    with open(args.poi_streetview_filename_path, 'r') as f_json:
-        region_poi_streetview_filename = json.load(f_json)
+    # with open(args.poi_streetview_filename_path, 'r') as f_json:
+    #     region_poi_streetview_filename = json.load(f_json)
+
+    region_streetview_ans = pd.read_csv('region_STV_agent_sum_gpt35.csv')
 
     args.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
@@ -124,13 +128,13 @@ if __name__ == "__main__":
     torch.backends.cudnn.enabled = False
     torch.use_deterministic_algorithms(False)
 
-    d = Data_CompGCN(args.kg_path, args.dataset)
+    # d = Data_CompGCN(args.kg_path, args.dataset)
 
-    region_poi_streetview_ents = sorted(list(region_poi_streetview_filename.keys()), key=lambda y: int(y))
+    # region_poi_streetview_ents = sorted(list(region_poi_streetview_filename.keys()), key=lambda y: int(y))
 
-    region_poi_streetview_idxs = [d.ent2id[x] for x in region_poi_streetview_ents]
+    # region_poi_streetview_idxs = [d.ent2id[x] for x in region_poi_streetview_ents]
     train_dataset = region_dataset(region_poi_streetview_idxs, d.id2ent, args.si_path, \
-                                   args.sv_path, dict(region_poi_streetview_filename))
+                                   args.sv_path, region_streetview_ans) #dict(region_poi_streetview_filename))
 
     train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=8)
     print('len of train_dataset:', len(train_dataset))
@@ -164,4 +168,4 @@ if __name__ == "__main__":
     out = os.path.join(args.model_path, "checkpoint_{}.tar".format(args.current_epoch))
     torch.save(model.state_dict(), out)
 
-    extract_feature(args, model, extract_loader)
+    # extract_feature(args, model, extract_loader)
