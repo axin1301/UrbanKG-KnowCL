@@ -4,7 +4,7 @@ from torch.utils.data import Dataset
 from PIL import Image
 import torchvision
 import torch
-
+from transformers import BertModel, BertTokenizer
 
 class Data_CompGCN(object):
     def __init__(self, kg_dir, dataset_name):
@@ -51,12 +51,12 @@ class Data_CompGCN(object):
 
 
 class region_dataset(Dataset):
-    def __init__(self, region_kg_idxs, id2ent, si_root_dir, sv_root_dir, streetview_region_dict):
+    def __init__(self, region_kg_idxs, si_root_dir, sv_root_dir, region_streetview_ans):#streetview_region_dict
         self.region_kg_idxs = region_kg_idxs
-        self.id2ent = id2ent
         self.si_root_dir = si_root_dir
         self.sv_root_dir = sv_root_dir
-        self.streetview_region = streetview_region_dict
+        self.region_streetview_ans_region_list = list(region_streetview_ans['region_name']
+        self.region_streetview_ans_ans_list = list(region_streetview_ans['STV_agent_ans']
 
         self.transform = torchvision.transforms.Compose(
             [
@@ -72,14 +72,22 @@ class region_dataset(Dataset):
     def __getitem__(self, kg_idx):
         streetview_list = []
         kg_idx = self.region_kg_idxs[kg_idx]
-        for img_file_name in self.streetview_region[self.id2ent[kg_idx]]:
-            image = Image.open(self.sv_root_dir + self.id2ent[kg_idx] + '/' + img_file_name)
-            if self.transform:
-                image = self.transform(image)
-            streetview_list.append(image)
-        k_streetview = torch.stack(streetview_list, 0)
+                
+        
+        # for img_file_name in self.region_streetview_ans [self.id2ent[kg_idx]]:
+        #     image = Image.open(self.sv_root_dir + self.id2ent[kg_idx] + '/' + img_file_name)
+        #     if self.transform:
+        #         image = self.transform(image)
+        #     streetview_list.append(image)
+        # k_streetview = torch.stack(streetview_list, 0)
+        
+        text = self.region_streetview_ans_ans_list[kg_idx]
+        # 加载预训练的BERT模型和分词器
+        model_name = 'bert-base-uncased'
+        tokenizer = BertTokenizer.from_pretrained(model_name)
+        input_ids = tokenizer.encode(text, add_special_tokens=True, return_tensors='pt')
 
-        satellite_image = Image.open(self.si_root_dir + self.id2ent[kg_idx] + '.png')
+        satellite_image = Image.open(self.si_root_dir + self.region_streetview_ans_region_list[kg_idx] + '.png')
         if self.transform:
             satellite_image = self.transform(satellite_image)
-        return satellite_image, k_streetview, kg_idx
+        return satellite_image, text  #k_streetview, kg_idx
