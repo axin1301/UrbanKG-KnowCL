@@ -133,27 +133,27 @@ if __name__ == "__main__":
     # region_poi_streetview_ents = sorted(list(region_poi_streetview_filename.keys()), key=lambda y: int(y))
 
     # region_poi_streetview_idxs = [d.ent2id[x] for x in region_poi_streetview_ents]
-    train_dataset = region_dataset(region_poi_streetview_idxs, d.id2ent, args.si_path, \
+    train_dataset = region_dataset(region_poi_streetview_idxs, args.si_path, \
                                    args.sv_path, region_streetview_ans) #dict(region_poi_streetview_filename))
 
     train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=8)
     print('len of train_dataset:', len(train_dataset))
 
-    extract_dataset = region_dataset(region_poi_streetview_idxs, d.id2ent, args.si_path, \
-                                     args.sv_path, dict(region_poi_streetview_filename))
+    extract_dataset = region_dataset(region_poi_streetview_idxs, args.si_path, \
+                                     args.sv_path, region_streetview_ans) #dict(region_poi_streetview_filename))
     extract_loader = DataLoader(extract_dataset, batch_size=16, shuffle=False, num_workers=8)
     print('len of extract_dataset:', len(extract_dataset))
 
-    pretrain_emb = np.load(args.TuckER_pretrain_path)
-    node_emb = torch.FloatTensor(pretrain_emb['E_pretrain'])
-    rel_emb = torch.FloatTensor(pretrain_emb['R_pretrain'])
+    # pretrain_emb = np.load(args.TuckER_pretrain_path)
+    # node_emb = torch.FloatTensor(pretrain_emb['E_pretrain'])
+    # rel_emb = torch.FloatTensor(pretrain_emb['R_pretrain'])
 
-    g = in_out_norm(d.g.to(args.device))
-    kwargs = {'d': d, 'g': g}
+    # g = in_out_norm(d.g.to(args.device))
+    # kwargs = {'d': d, 'g': g}
     if args.model_name == 'Pair_CLIP_SI':
-        model = Pair_CLIP_SI(node_emb, rel_emb, args.layer_size, args.layer_dropout, **kwargs)
-    elif args.model_name == 'Pair_CLIP_SV':
-        model = Pair_CLIP_SV(node_emb, rel_emb, args.layer_size, args.layer_dropout, **kwargs)
+        model = Pair_CLIP_SI(args.layer_size, args.layer_dropout, **kwargs)
+    # elif args.model_name == 'Pair_CLIP_SV':
+    #     model = Pair_CLIP_SV(node_emb, rel_emb, args.layer_size, args.layer_dropout, **kwargs)
 
     model = model.to(args.device)
 
