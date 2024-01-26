@@ -5,6 +5,8 @@ import numpy as np
 import torchvision
 from compGCN import CompGraphConv
 import torch.nn as nn
+import torch
+from transformers import BertModel, BertTokenizer
 
 
 def get_resnet(name, pretrained=False):
@@ -54,7 +56,7 @@ def load_pretrain(model, pre_s_dict):
 
 
 class Pair_CLIP_SI(nn.Module):
-    def __init__(self, node_emb, rel_emb, layer_size, layer_dropout, **kwargs):
+    def __init__(self, layer_size, layer_dropout, **kwargs):
         super(Pair_CLIP_SI, self).__init__()
         d = kwargs['d']
         self.g = kwargs['g']
@@ -76,41 +78,56 @@ class Pair_CLIP_SI(nn.Module):
         self.projector_si[0].weight.data = mlp_pretrain['projector.0.weight']
         self.projector_si[2].weight.data = mlp_pretrain['projector.2.weight']
 
-        # CompGCN layers
-        self.layers = nn.ModuleList()
-        self.layers.append(CompGraphConv(64, self.layer_size[0]))
-        for i in range(self.num_layer - 1):
-            self.layers.append(CompGraphConv(self.layer_size[i], self.layer_size[i + 1]))
+        # # CompGCN layers
+        # self.layers = nn.ModuleList()
+        # self.layers.append(CompGraphConv(64, self.layer_size[0]))
+        # for i in range(self.num_layer - 1):
+        #     self.layers.append(CompGraphConv(self.layer_size[i], self.layer_size[i + 1]))
 
-        # Initial relation embeddings
-        self.rel_embds = nn.Embedding.from_pretrained(rel_emb, freeze=True)
-        # Node embeddings
-        self.n_embds = nn.Embedding.from_pretrained(node_emb, freeze=True)
-        # Dropout after compGCN layers
-        self.dropouts = nn.ModuleList()
-        for i in range(self.num_layer):
-            self.dropouts.append(nn.Dropout(self.layer_dropout[i]))
-        # CompGCN +mlp_projector
+        # # Initial relation embeddings
+        # self.rel_embds = nn.Embedding.from_pretrained(rel_emb, freeze=True)
+        # # Node embeddings
+        # self.n_embds = nn.Embedding.from_pretrained(node_emb, freeze=True)
+        # # Dropout after compGCN layers
+        # self.dropouts = nn.ModuleList()
+        # for i in range(self.num_layer):
+        #     self.dropouts.append(nn.Dropout(self.layer_dropout[i]))
+        # # CompGCN +mlp_projector
+        # self.projector_ent = nn.Sequential(
+        #     nn.Linear(64, 64, bias=False),
+        #     nn.ReLU(),
+        #     nn.Linear(64, 64, bias=False),
+        # )
+
+        # torch.nn.init.xavier_normal_(self.projector_ent[0].weight.data)
+        # torch.nn.init.xavier_normal_(self.projector_ent[2].weight.data)
+
+        # 加载预训练的BERT模型和分词器
+        model_name = 'bert-base-uncased'
+        tokenizer = BertTokenizer.from_pretrained(model_name)
+        bert_model = BertModel.from_pretrained(model_name)
+        # 去掉最后的分类层
+        bert_model.config.num_labels = None
+        bert_model.classifier = None
         self.projector_ent = nn.Sequential(
-            nn.Linear(64, 64, bias=False),
+            nn.Linear(786, 64, bias=False),
             nn.ReLU(),
             nn.Linear(64, 64, bias=False),
         )
-
         torch.nn.init.xavier_normal_(self.projector_ent[0].weight.data)
         torch.nn.init.xavier_normal_(self.projector_ent[2].weight.data)
+        
+
 
     def forward(self, si, kg_idx):
         si = self.si_encoder(si)
         si_features = self.projector_si(si)
 
-        n_feats = self.n_embds.weight
-        r_feats = self.rel_embds.weight
-        for layer, dropout in zip(self.layers, self.dropouts):
-            n_feats, r_feats = layer(self.g, n_feats, r_feats)
-            n_feats = dropout(n_feats)
-        kge_features = n_feats[kg_idx, :]
-        kge_features = self.projector_ent(kge_features)
+
+        kge_features = bert_model(kg_idx)
+        # 获取最后一个隐藏层的输出
+        last_hidden_states = outputs.last_hidden_state
+        kge_features = self.projector_ent(last_hidden_states)
 
         # calculate loss for kge-sv-si contrastive
         score = torch.einsum('ai, ci->ac', kge_features, si_features)
